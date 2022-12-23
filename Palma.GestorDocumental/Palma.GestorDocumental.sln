@@ -5,6 +5,8 @@ VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Palma.GestorDocumental.Job", "Palma.GestorDocumental.Job\Palma.GestorDocumental.Job.csproj", "{A4035C23-4900-406B-9604-7C761B8D7897}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Palma.GestorDocumental.Repository", "Palma.GestorDocumental.Repository\Palma.GestorDocumental.Repository.csproj", "{56C2A94B-5F19-421B-A867-37D34FC8555C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{A4035C23-4900-406B-9604-7C761B8D7897}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4035C23-4900-406B-9604-7C761B8D7897}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4035C23-4900-406B-9604-7C761B8D7897}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56C2A94B-5F19-421B-A867-37D34FC8555C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56C2A94B-5F19-421B-A867-37D34FC8555C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56C2A94B-5F19-421B-A867-37D34FC8555C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56C2A94B-5F19-421B-A867-37D34FC8555C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
