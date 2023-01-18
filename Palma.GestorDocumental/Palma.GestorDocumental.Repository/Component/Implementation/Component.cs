@@ -70,21 +70,6 @@ namespace Palma.GestorDocumental.Repository.Component.Implementation
                 elements.AddRange(elementsObsoletos);
                 elements.AddRange(elementsVigentes);
 
-                //elements.ForEach(element =>
-                //{
-                //    var fileRef = util.toString(element["FileRef"]);
-                //    try
-                //    {
-
-                //        Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
-                //        Stream newfile = FileHelper.ReplaceHiperLink(file, oldLink, newLink);
-                //    }
-                //    catch (Exception ex)
-                //    {
-                //        Console.WriteLine(@$"Ocurrio un error en el archivo {fileRef}: {ex.Message}");
-                //    }
-
-                //});
 
                 using var semaforo = new SemaphoreSlim(1);
                 var tasks = elements.Select(element => Task.Run(async () =>
@@ -95,12 +80,14 @@ namespace Palma.GestorDocumental.Repository.Component.Implementation
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     dict["LinkCambiado"] = true;
                     await semaforo.WaitAsync();
-                    try
-                    {
-                        Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
-                        string newfile = FileHelper.ReplaceHiperLink(file, oldLink, newLink);
-                        var bytes = Convert.FromBase64String(newfile);
-                        SPOHelper.UploadDocument4(context, obj.Root ,element.nombreLista, fileName, bytes, dict);
+                try
+                {
+                    Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
+                    string newfile = FileHelper.ReplaceHiperLink(file, oldLink, newLink);
+                    var bytes = Convert.FromBase64String(newfile);
+                    Stream stream = new MemoryStream(bytes);
+                    SPOHelper.UploadDocument3(context, obj.Root, element.nombreLista, fileName, stream, dict);
+                    Console.WriteLine("ID Actualizado: " + ID);
                     }
                     catch (Exception ex)
                     {

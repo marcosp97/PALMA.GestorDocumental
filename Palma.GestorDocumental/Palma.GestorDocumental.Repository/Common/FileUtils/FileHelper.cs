@@ -359,6 +359,9 @@ namespace Palma.GestorDocumental.Repository.Common.FileUtils
                         List<SdtBlock> taggedContentControls = mainPart.Document.Descendants<SdtBlock>().ToList();
                         List<SdtRun> taggedRunContentControls = mainPart.Document.Descendants<SdtRun>().ToList();
                         List<Hyperlink> hLinks = mainPart.Document.Descendants<Hyperlink>().ToList();
+                        List<Hyperlink> hLinksBody = mainPart.Document.Body.Descendants<Hyperlink>().ToList();
+                        List<FieldCode> fieldsCodes = mainPart.Document.Body.Descendants<FieldCode>().ToList();
+                        
                         if (taggedRunContentControls.Count > 0)
                         {
                             foreach (SdtRun control in taggedRunContentControls)
@@ -433,6 +436,17 @@ namespace Palma.GestorDocumental.Repository.Common.FileUtils
                                         }
 
                                     }
+                                }
+                            }
+                        }
+                        if (fieldsCodes.Count > 0)
+                        {
+                            foreach (FieldCode fieldCode in fieldsCodes)
+                            {
+                                if (fieldCode != null)
+                                {
+                                    string textReplaced = System.Uri.UnescapeDataString(fieldCode.Text);
+                                    fieldCode.Text = textReplaced.Replace(textToReplace, replace);
                                 }
                             }
                         }

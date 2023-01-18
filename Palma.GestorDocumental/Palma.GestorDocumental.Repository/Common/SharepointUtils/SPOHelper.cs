@@ -55,7 +55,7 @@ namespace Palma.GestorDocumental.Repository.Common.SharepointUtils
             SP.List lista = web.Lists.GetByTitle(nombrelista);
             SP.ListItemCollectionPosition position = null;
             // Page Size: 100
-            int rowLimit = 100;
+            int rowLimit = 1000;
             var camlQuery = new SP.CamlQuery();
             camlQuery.ViewXml = queryCaml.Replace("[%ROW_LIMIT%]", rowLimit.ToString());
             do
