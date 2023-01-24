@@ -23,7 +23,7 @@ namespace Palma.GestorDocumental.Job
                 .Build();
 
             var flow = ActivatorUtilities.CreateInstance<Component>(host.Services);
-            flow.Run();
+            flow.Run2();
             Console.WriteLine("Proceso Completado!!!");
             Console.ReadKey();
             

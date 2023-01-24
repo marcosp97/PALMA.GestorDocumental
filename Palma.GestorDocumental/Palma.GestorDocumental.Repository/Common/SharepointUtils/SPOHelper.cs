@@ -863,6 +863,35 @@ namespace Palma.GestorDocumental.Repository.Common.SharepointUtils
             return vr_objStream;
         }
 
+        public static void RestoreFirstVersion(SP.ClientContext clientContext, string pe_strUrlFile, Dictionary<string, object> CampoValor)
+        {
+            try
+            {
+                SP.Web web = clientContext.Web;
+                SP.File objSPFile = web.GetFileByServerRelativeUrl(pe_strUrlFile);
+                clientContext.Load(objSPFile);
+                if (objSPFile != null)
+                {
+                    var version = objSPFile.MinorVersion;
+                    objSPFile.Versions.RestoreByLabel(version.ToString());
+                    clientContext.ExecuteQuery();
+                    SP.ListItem currentItem = objSPFile.ListItemAllFields;
+                    foreach (KeyValuePair<string, object> kvp in CampoValor)
+                    {
+                        currentItem[kvp.Key] = kvp.Value;
+                    }
+                    currentItem.Update();
+                    clientContext.Load(currentItem);
+                    clientContext.ExecuteQuery();
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
         public static SP.ClientResult<ResultTableCollection> GetItemsSearch(SP.ClientContext clientContext, string query, string[] properties)
         {
             KeywordQuery keywordQuery = new KeywordQuery(clientContext);

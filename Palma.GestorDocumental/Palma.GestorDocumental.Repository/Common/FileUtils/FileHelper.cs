@@ -445,8 +445,13 @@ namespace Palma.GestorDocumental.Repository.Common.FileUtils
                             {
                                 if (fieldCode != null)
                                 {
-                                    string textReplaced = System.Uri.UnescapeDataString(fieldCode.Text);
-                                    fieldCode.Text = textReplaced.Replace(textToReplace, replace);
+                                    if (fieldCode.Text.Contains("HYPERLINK "))
+                                    {
+                                        string textReplaced = System.Uri.UnescapeDataString(fieldCode.Text);
+                                        var url = new System.Uri(textReplaced.Replace("HYPERLINK ", "").Replace(textToReplace, replace), System.UriKind.Absolute);
+                                        var extension = Path.GetExtension(url.AbsoluteUri);
+                                        fieldCode.Text = "HYPERLINK " + url.AbsoluteUri;
+                                    }
                                 }
                             }
                         }
@@ -458,6 +463,303 @@ namespace Palma.GestorDocumental.Repository.Common.FileUtils
                     string resultado = ConvertToBase64(ms);
                     //SaveStreamAsFile(@"C:\Users\INTEL\Desktop\", WordFileUpdate, "test.docx");
                     return resultado;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                ms?.Close();
+                ms?.Dispose();
+            }
+        }
+        public static string ReplaceHiperLinkJustFieldCode(Stream file, string textToReplace, string replace, out bool validFieldCode)
+        {
+            MemoryStream ms = null;
+            validFieldCode = false;
+            try
+            {
+                using (ms = new MemoryStream())
+                {
+                    file.CopyTo(ms);
+                    using (WordprocessingDocument wordprocessingDocument = WordprocessingDocument.Open(ms, file.CanRead))
+                    {
+                        MainDocumentPart mainPart = wordprocessingDocument.MainDocumentPart;
+                        Body body = mainPart.Document.Body;
+                        #region Body
+                        List<SdtBlock> taggedContentControls = mainPart.Document.Descendants<SdtBlock>().ToList();
+                        List<SdtRun> taggedRunContentControls = mainPart.Document.Descendants<SdtRun>().ToList();
+                        List<Hyperlink> hLinks = mainPart.Document.Descendants<Hyperlink>().ToList();
+                        List<Hyperlink> hLinksBody = mainPart.Document.Body.Descendants<Hyperlink>().ToList();
+                        List<FieldCode> fieldsCodes = mainPart.Document.Body.Descendants<FieldCode>().ToList();
+
+                        if (taggedRunContentControls.Count > 0)
+                        {
+                            foreach (SdtRun control in taggedRunContentControls)
+                            {
+                                var hyperLinks = control.Descendants<Hyperlink>().ToList();
+                                foreach (Hyperlink hyperLink in hyperLinks)
+                                {
+                                    if (hyperLink != null)
+                                    {
+                                        string relationId = hyperLink.Id;
+                                        if (relationId != string.Empty)
+                                        {
+                                            var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                            if (hr == null) continue;
+                                            var fieldName = hr.Uri.ToString();
+                                            if (fieldName.Contains(textToReplace))
+                                            {
+                                                mainPart.DeleteReferenceRelationship(hr);
+                                                mainPart.AddHyperlinkRelationship(new System.Uri(fieldName.Replace(textToReplace, replace), System.UriKind.Absolute), true, relationId);
+                                            }
+
+                                        }
+                                    }
+
+                                }
+                            }
+
+                        }
+                        if (taggedContentControls.Count > 0)
+                        {
+                            foreach (SdtBlock control in taggedContentControls)
+                            {
+                                var hyperLinks = control.Descendants<Hyperlink>().ToList();
+                                foreach (Hyperlink hyperLink in hyperLinks)
+                                {
+                                    if (hyperLink != null)
+                                    {
+                                        string relationId = hyperLink.Id;
+                                        if (relationId != string.Empty)
+                                        {
+                                            var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                            if (hr == null) continue;
+                                            var fieldName = hr.Uri.ToString();
+                                            if (fieldName.Contains(textToReplace))
+                                            {
+                                                mainPart.DeleteReferenceRelationship(hr);
+                                                mainPart.AddHyperlinkRelationship(new System.Uri(fieldName.Replace(textToReplace, replace), System.UriKind.Absolute), true, relationId);
+                                            }
+
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                        if (hLinks.Count > 0)
+                        {
+                            foreach (Hyperlink hyperLink in hLinks)
+                            {
+                                if (hyperLink != null)
+                                {
+                                    string relationId = hyperLink.Id;
+                                    if (relationId != string.Empty)
+                                    {
+                                        var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                        if (hr == null) continue;
+                                        var fieldName = hr.Uri.ToString();
+                                        if (fieldName.Contains(textToReplace))
+                                        {
+                                            mainPart.DeleteReferenceRelationship(hr);
+                                            mainPart.AddHyperlinkRelationship(new System.Uri(fieldName.Replace(textToReplace, replace), System.UriKind.Absolute), true, relationId);
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                        if (fieldsCodes.Count > 0)
+                        {
+                            foreach (FieldCode fieldCode in fieldsCodes)
+                            {
+                                if (fieldCode != null)
+                                {
+                                    if (fieldCode.Text.Contains("HYPERLINK "))
+                                    {
+                                        string textReplaced = System.Uri.UnescapeDataString(fieldCode.Text);
+                                        var url = new System.Uri(textReplaced.Replace("HYPERLINK ", "").Replace("\"","").Replace(textToReplace, replace), System.UriKind.Absolute);
+                                        var extension = Path.GetExtension(url.AbsoluteUri);
+                                        fieldCode.Text = "HYPERLINK " + url.AbsoluteUri;
+                                        validFieldCode = true;
+                                    }
+                                }
+                            }
+                        }
+                        #endregion
+                        mainPart.Document.Save();
+                        wordprocessingDocument.Close();
+                    }
+                    Stream WordFileUpdate = ms;
+                    string resultado = ConvertToBase64(ms);
+                    //SaveStreamAsFile(@"C:\Users\INTEL\Desktop\", WordFileUpdate, "test.docx");
+                    return resultado;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                ms?.Close();
+                ms?.Dispose();
+            }
+        }
+        public static bool GetHiperLinkWithoutExtension(Stream file)
+        {
+            MemoryStream ms = null;
+            try
+            {
+                using (ms = new MemoryStream())
+                {
+                    file.CopyTo(ms);
+                    using (WordprocessingDocument wordprocessingDocument = WordprocessingDocument.Open(ms, file.CanRead))
+                    {
+                        MainDocumentPart mainPart = wordprocessingDocument.MainDocumentPart;
+                        Body body = mainPart.Document.Body;
+                        #region Body
+                        List<SdtBlock> taggedContentControls = mainPart.Document.Descendants<SdtBlock>().ToList();
+                        List<SdtRun> taggedRunContentControls = mainPart.Document.Descendants<SdtRun>().ToList();
+                        List<Hyperlink> hLinks = mainPart.Document.Descendants<Hyperlink>().ToList();
+                        List<Hyperlink> hLinksBody = mainPart.Document.Body.Descendants<Hyperlink>().ToList();
+                        List<FieldCode> fieldsCodes = mainPart.Document.Body.Descendants<FieldCode>().ToList();
+
+                        if (taggedRunContentControls.Count > 0)
+                        {
+                            foreach (SdtRun control in taggedRunContentControls)
+                            {
+                                var hyperLinks = control.Descendants<Hyperlink>().ToList();
+                                foreach (Hyperlink hyperLink in hyperLinks)
+                                {
+                                    if (hyperLink != null)
+                                    {
+                                        string relationId = hyperLink.Id;
+                                        if (relationId != string.Empty)
+                                        {
+                                            var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                            if (hr == null) continue;
+                                            var fieldName = hr.Uri.ToString();
+                                            var extension = Path.GetExtension(fieldName);
+                                            if (string.IsNullOrEmpty(extension)) return true;
+
+                                        }
+                                    }
+
+                                }
+                            }
+
+                        }
+                        if (taggedContentControls.Count > 0)
+                        {
+                            foreach (SdtBlock control in taggedContentControls)
+                            {
+                                var hyperLinks = control.Descendants<Hyperlink>().ToList();
+                                foreach (Hyperlink hyperLink in hyperLinks)
+                                {
+                                    if (hyperLink != null)
+                                    {
+                                        string relationId = hyperLink.Id;
+                                        if (relationId != string.Empty)
+                                        {
+                                            var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                            if (hr == null) continue;
+                                            var fieldName = hr.Uri.ToString();
+                                            var extension = Path.GetExtension(fieldName);
+                                            if (string.IsNullOrEmpty(extension)) return true;
+
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                        if (hLinks.Count > 0)
+                        {
+                            foreach (Hyperlink hyperLink in hLinks)
+                            {
+                                if (hyperLink != null)
+                                {
+                                    string relationId = hyperLink.Id;
+                                    if (relationId != string.Empty)
+                                    {
+                                        var hr = mainPart.HyperlinkRelationships.FirstOrDefault(a => a.Id == relationId);
+                                        if (hr == null) continue;
+                                        var fieldName = hr.Uri.ToString();
+                                        var extension = Path.GetExtension(fieldName);
+                                        if (string.IsNullOrEmpty(extension)) return true;
+
+                                    }
+                                }
+                            }
+                        }
+                        if (fieldsCodes.Count > 0)
+                        {
+                            foreach (FieldCode fieldCode in fieldsCodes)
+                            {
+                                if (fieldCode != null)
+                                {
+                                    if(fieldCode.Text.Contains("HYPERLINK ")) return true;
+
+                                }
+                            }
+                        }
+                        #endregion
+                        mainPart.Document.Save();
+                        wordprocessingDocument.Close();
+                    }
+                    //Stream WordFileUpdate = ms;
+                    //string resultado = ConvertToBase64(ms);
+                    //SaveStreamAsFile(@"C:\Users\INTEL\Desktop\", WordFileUpdate, "test.docx");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                ms?.Close();
+                ms?.Dispose();
+            }
+        }
+        public static bool GetHiperLinkFieldCode(Stream file)
+        {
+            MemoryStream ms = null;
+            try
+            {
+                using (ms = new MemoryStream())
+                {
+                    file.CopyTo(ms);
+                    using (WordprocessingDocument wordprocessingDocument = WordprocessingDocument.Open(ms, file.CanRead))
+                    {
+                        MainDocumentPart mainPart = wordprocessingDocument.MainDocumentPart;
+                        Body body = mainPart.Document.Body;
+                        #region Body
+                        List<FieldCode> fieldsCodes = mainPart.Document.Body.Descendants<FieldCode>().ToList();
+                        if (fieldsCodes.Count > 0)
+                        {
+                            foreach (FieldCode fieldCode in fieldsCodes)
+                            {
+                                if (fieldCode != null)
+                                {
+                                    if(fieldCode.Text.Contains("HYPERLINK ")) return true;
+
+                                }
+                            }
+                        }
+                        #endregion
+                        mainPart.Document.Save();
+                        wordprocessingDocument.Close();
+                    }
+                    //Stream WordFileUpdate = ms;
+                    //string resultado = ConvertToBase64(ms);
+                    //SaveStreamAsFile(@"C:\Users\INTEL\Desktop\", WordFileUpdate, "test.docx");
+                    return false;
                 }
             }
             catch (Exception ex)

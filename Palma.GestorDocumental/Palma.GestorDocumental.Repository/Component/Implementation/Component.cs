@@ -61,13 +61,13 @@ namespace Palma.GestorDocumental.Repository.Component.Implementation
                                             <OrderBy Override='TRUE'><FieldRef Name='ID' Ascending='False'/></OrderBy>
                                         </Query>
                                         <RowLimit Paged='TRUE'>[%ROW_LIMIT%]</RowLimit></View>";
-                List<FileBE> elementsElaboracion = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryElaboracion, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryElaboracion }).ToList();
-                List<FileBE> elementsObsoletos = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryObsoletos, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryObsoletos }).ToList();
+                //List<FileBE> elementsElaboracion = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryElaboracion, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryElaboracion }).ToList();
+                //List<FileBE> elementsObsoletos = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryObsoletos, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryObsoletos }).ToList();
                 List<FileBE> elementsVigentes = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryVigentes, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryVigentes }).ToList();
 
                 List<FileBE> elements = new List<FileBE>();
-                elements.AddRange(elementsElaboracion);
-                elements.AddRange(elementsObsoletos);
+                //elements.AddRange(elementsElaboracion);
+                //elements.AddRange(elementsObsoletos);
                 elements.AddRange(elementsVigentes);
 
 
@@ -80,14 +80,92 @@ namespace Palma.GestorDocumental.Repository.Component.Implementation
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     dict["LinkCambiado"] = true;
                     await semaforo.WaitAsync();
-                try
+                    try
+                    {
+                        Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
+                        string newfile = FileHelper.ReplaceHiperLink(file, oldLink, newLink);
+                        var bytes = Convert.FromBase64String(newfile);
+                        Stream stream = new MemoryStream(bytes);
+                        SPOHelper.UploadDocument3(context, obj.Root, element.nombreLista, fileName, stream, dict);
+                        Console.WriteLine("ID Actualizado: " + ID);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(@$"Ocurrio un error en el archivo {fileRef}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        semaforo.Release();
+                    }
+                })).ToArray();
+
+                Task.WaitAll(tasks);
+            }
+        }
+        public void Run2()
+        {
+            string user = this._configuration["Credentials:user"];
+            string pass = this._configuration["Credentials:password"];
+            string siteUrl = this._configuration["Credentials:urlSHP"];
+            string libraryElaboracion = this._configuration["Credentials:libraryEnElaboracion"];
+            string libraryObsoletos = this._configuration["Credentials:libraryObsoletos"];
+            string libraryVigentes = this._configuration["Credentials:libraryVigentes"];
+            string oldLink = this._configuration["Credentials:oldLink"];
+            string newLink = this._configuration["Credentials:newLink"];
+            SecureString password = new SecureString();
+            pass.ToList().ForEach(password.AppendChar);
+
+            Uri site = new Uri(siteUrl);
+
+            using (var authenticationManager = new AuthenticationManager())
+            using (var context = authenticationManager.GetContext(site, user, password))
+            {
+                string camlQuery = @"<View Scope='RecursiveAll'>
+                                        <Query>
+                                            <Where>
+                                                <Eq>
+                                                    <FieldRef Name='LinkCambiado' />
+                                                    <Value Type='Number'>1</Value>
+                                                </Eq>
+                                            </Where>
+                                            <OrderBy Override='TRUE'><FieldRef Name='ID' Ascending='False'/></OrderBy>
+                                        </Query>
+                                        <RowLimit Paged='TRUE'>[%ROW_LIMIT%]</RowLimit></View>";
+                List<FileBE> elementsElaboracion = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryElaboracion, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryElaboracion }).ToList();
+                List<FileBE> elementsObsoletos = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryObsoletos, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryObsoletos }).ToList();
+                List<FileBE> elementsVigentes = SPOHelper.GetLisItemsParentSiteRecursive(context, libraryVigentes, obj.Root, camlQuery).Select(x => new FileBE() { item = x, nombreLista = libraryVigentes }).ToList();
+
+                List<FileBE> elements = new List<FileBE>();
+                elements.AddRange(elementsElaboracion);
+                elements.AddRange(elementsObsoletos);
+                elements.AddRange(elementsVigentes);
+
+
+                using var semaforo = new SemaphoreSlim(1);
+                var tasks = elements.Select((element, i) => Task.Run(async () =>
                 {
-                    Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
-                    string newfile = FileHelper.ReplaceHiperLink(file, oldLink, newLink);
-                    var bytes = Convert.FromBase64String(newfile);
-                    Stream stream = new MemoryStream(bytes);
-                    SPOHelper.UploadDocument3(context, obj.Root, element.nombreLista, fileName, stream, dict);
-                    Console.WriteLine("ID Actualizado: " + ID);
+                    var fileRef = util.toString(element.item["FileRef"]);
+                    var fileName = Path.GetFileName(fileRef);
+                    var ID = util.toInt(element.item["ID"]);
+                    Dictionary<string, object> dict = new Dictionary<string, object>();
+                    dict["LinkCambiado"] = true;
+                    if (element.nombreLista == libraryVigentes || element.nombreLista == libraryObsoletos)
+                        dict["PDFConvertido"] = false;
+                    await semaforo.WaitAsync();
+                    try
+                    {
+                        Stream file = SPOHelper.ObtenerArchivo(context, fileRef);
+                        bool restore;
+                        var newfile = FileHelper.ReplaceHiperLinkJustFieldCode(file, newLink, newLink, out restore);
+                        if(restore)
+                        {
+                            var bytes = Convert.FromBase64String(newfile);
+                            Stream stream = new MemoryStream(bytes);
+                            SPOHelper.UploadDocument3(context, obj.Root, element.nombreLista, fileName, stream, dict);
+                            Console.WriteLine("ID Restaurado: " + ID);
+                            Console.WriteLine("Numero: " + (i + 1));
+                        }
+                        //SPOHelper.RestoreFirstVersion(context, fileRef, dict);
                     }
                     catch (Exception ex)
                     {
